@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Label Traceability</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link rel="shortcut icon" href="logoo.ico" type="image/x-icon">
+</head>
+<body class="bg-light">
+<header class="d-flex align-items-center justify-content-between px-4 px-md-5 border-bottom sticky-top" 
+        style="height: 80px; background-color: rgba(2, 18, 56, 0.85); backdrop-filter: blur(12px); border-color: #1e293b !important; z-index: 1030;">       
+    <nav class="d-flex align-items-center">
+        <a href="index.html" class="text-white text-decoration-none m-0" style="font-size: 2.25rem; font-weight: 900; letter-spacing: -1.5px;">
+            PPIC<span style="color: #06b6d4;">SOMIC</span>
+        </a>
+    </nav>
+</header>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Form Cetak Label Traceability</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formCetak">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Pilih Traceability</label>
+                            <select class="form-select" id="model_type" required>
+                                <option value="">-- Pilih Label --</option>
+                                <option value="Template 1">Traceability D03B</option>
+                                <option value="Template 2">Traceability Soket Y4L</option>
+                                <option value="Template 3">Traceability Soket YLO</option>
+                                <option value="Template 4">Traceability Soket YR9</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nama Operator</label>
+                            <input type="text" class="form-control" id="operator_name" placeholder="Ketik nama Anda..." required>
+                        </div>
+                        <div id="kolom_khusus" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tanggal Assembly</label>
+                            <input type="date" class="form-control" id="assembly_date">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tanggal Inspection</label>
+                            <input type="date" class="form-control" id="inspection_date">
+                        </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Tanggal Packing</label>
+                            <input type="date" class="form-control" id="packing_date" required>
+                        </div>
+                        <div class="mb-4">
+                           <label class="form-label fw-bold text-danger">Jumlah Cetak</label>
+                           <input type="number" class="form-control border-danger" id="print_copies" value="1" min="1" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">Generate Label</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Preview Label Thermal</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="text-muted small mb-2">Pastikan tata letak sudah pas sebelum dicetak ke printer.</p>
+        <img id="labelImage" src="" alt="Label Preview" class="img-fluid border p-2 shadow-sm bg-white" style="max-width: 90%;">
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+        <button type="button" id="btnCetakFisik" class="btn btn-dark">🖨️ Cetak ke Printer</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="bootstrap.bundle.min.js"></script>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. Munculkan otomatis nama operator yang tersimpan (Kode asli Abang)
+    var savedName = localStorage.getItem("saved_operator_name");
+    if (savedName) {
+        document.getElementById("operator_name").value = savedName;
+    }
+
+    // 2. Set "Date Packing" otomatis ke Hari Ini
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth() + 1).padStart(2, '0'); // Bulan mulai dari 0, makanya +1
+    var dd = String(today.getDate()).padStart(2, '0');
+    var packingFormatted = yyyy + '-' + mm + '-' + dd;
+    
+    document.getElementById("packing_date").value = packingFormatted;
+
+    // 3. Set "Inspection Date" otomatis ke H-3
+    var inspDate = new Date();
+    inspDate.setDate(today.getDate() - 3); // Rumus mundur 3 hari
+    var inspYyyy = inspDate.getFullYear();
+    var inspMm = String(inspDate.getMonth() + 1).padStart(2, '0');
+    var inspDd = String(inspDate.getDate()).padStart(2, '0');
+    var inspFormatted = inspYyyy + '-' + inspMm + '-' + inspDd;
+    
+    document.getElementById("inspection_date").value = inspFormatted;
+});
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    var date = new Date(dateString);
+    var months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    
+    var day = date.getDate().toString().padStart(2, '0');
+    var month = months[date.getMonth()];
+    var year = date.getFullYear();
+    
+    return day + " " + month + " " + year;
+}
+
+var previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+
+document.getElementById('formCetak').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    var modelType = document.getElementById('model_type').value;
+    var operatorName = document.getElementById('operator_name').value;
+    var assyDate = formatDate(document.getElementById('assembly_date').value);
+    var inspDate = formatDate(document.getElementById('inspection_date').value);
+    var packDate = formatDate(document.getElementById('packing_date').value);
+
+    
+    localStorage.setItem("saved_operator_name", operatorName);
+
+    var submitBtn = document.getElementById('btnSubmit');
+    submitBtn.innerHTML = "Memproses...";
+    submitBtn.disabled = true;
+
+    var zpl = "^XA\n";
+
+    if (modelType === "Template 1") {
+        var partName = "END SUB ASSY, TIE ROD";
+        var partNo = "45046-BZ360-00";
+        var backNo = "S043";
+        var qty = "12 PCS";
+        var operator = operatorName; 
+
+        zpl += "^FO10,10^GB780,370,2^FS\n";
+        zpl += "^FO10,40^GB780,0,2^FS\n";
+        zpl += "^FO10,70^GB400,0,2^FS\n";
+        zpl += "^FO10,100^GB780,0,2^FS\n";
+        zpl += "^FO10,140^GB780,0,2^FS\n";
+        zpl += "^FO10,200^GB400,0,2^FS\n";
+        zpl += "^FO510,200^GB280,0,2^FS\n";
+        zpl += "^FO10,260^GB400,0,2^FS\n";
+        zpl += "^FO510,260^GB280,0,2^FS\n";
+        zpl += "^FO10,320^GB400,0,2^FS\n";
+        zpl += "^FO510,320^GB280,0,2^FS\n";
+
+        zpl += "^FO60,100^GB0,280,2^FS\n";
+        zpl += "^FO220,100^GB0,280,2^FS\n";
+        zpl += "^FO410,10^GB0,370,2^FS\n";
+        zpl += "^FO510,10^GB0,370,2^FS\n";
+
+        zpl += "^FO100,15^A0N,22,22^FDTRACEBILITY LABEL^FS\n";
+        zpl += "^FO60,45^A0N,20,20^FD" + partName + "^FS\n";
+        zpl += "^FO110,75^A0N,20,20^FD" + partNo + "^FS\n";
+        zpl += "^FO415,18^A0N,18,18^FDBack No.SMI^FS\n";
+        zpl += "^FO430,60^A0N,30,30^FD" + backNo + "^FS\n";
+        zpl += "^FO590,18^A0N,18,18^FDUnique No.^FS\n";
+
+        zpl += "^FO20,115^A0N,20,20^FDNO.^FS\n";
+        zpl += "^FO100,115^A0N,20,20^FDPROSES^FS\n";
+        zpl += "^FO275,115^A0N,20,20^FDTANGGAL^FS\n";
+        zpl += "^FO440,115^A0N,20,20^FDQTY^FS\n";
+        zpl += "^FO580,115^A0N,20,20^FDOPERATOR^FS\n";
+
+        zpl += "^FO30,160^A0N,20,20^FD1^FS\n";
+        zpl += "^FO80,160^A0N,20,20^FDASSEMBLY^FS\n";
+        zpl += "^FO230,160^A0N,20,20^FD" + assyDate + "^FS\n";
+        zpl += "^FO30,220^A0N,20,20^FD2^FS\n";
+        zpl += "^FO80,220^A0N,20,20^FDINSPECTION^FS\n";
+        zpl += "^FO230,220^A0N,20,20^FD" + inspDate + "^FS\n";
+        zpl += "^FO30,280^A0N,20,20^FD3^FS\n";
+        zpl += "^FO80,280^A0N,20,20^FDPACKING^FS\n";
+        zpl += "^FO230,280^A0N,20,20^FD" + packDate + "^FS\n";
+        zpl += "^FO530,280^A0N,22,22^FD" + operator + "^FS\n";
+        zpl += "^FO30,340^A0N,20,20^FD4^FS\n";
+        zpl += "^FO80,340^A0N,20,20^FDPREPARATION^FS\n";
+        zpl += "^FO430,250^A0N,20,20^FD" + qty + "^FS\n";
+
+    } else if (modelType === "Template 2") {
+        var partName1 = "SOCKET BALL";
+        var partName2 = "JOINT";
+        var partNo = "45254-52S00";
+        var model = "Model Y4L";
+        var qty = "30 Pcs";
+        var customer1 = "PT. YOROZU";
+        var customer2 = "INDONESIA";
+        var operator = operatorName; 
+
+        zpl += "^FO10,10^GB770,380,2^FS\n";
+        zpl += "^FO550,55^GB230,0,2^FS\n";
+        zpl += "^FO10,100^GB770,0,2^FS\n";
+        zpl += "^FO10,140^GB770,0,2^FS\n";
+        zpl += "^FO10,230^GB770,0,2^FS\n";
+        zpl += "^FO10,270^GB770,0,2^FS\n";
+        zpl += "^FO200,10^GB0,380,2^FS\n";
+        zpl += "^FO550,10^GB0,380,2^FS\n";
+
+        zpl += "^FO60,15^GFA,350,350,7,00000000000000000000000000000000000000070000000000000F8000000000001F8000000000003F8000000000007F000000000000FE000000000003FC000000000003F800000000000FF000000000000FE0000000FF803FC000000FFFE07F0000001FFFF8FF0000007FFFF8FE000000FFFFF078000001FFFFE030000003FFFFC000000007FFFF8000000007FFFF000000000FFFFE003000000FFFFC007000001FFFF800F800001FFFF001F800001FFFE003F800003FFFC007F800003FFF800FF800003FFF001FFC00003FFE003FFC00003FF8007FF800003FF001FFF800003FF001FFF800001FC007FFF800001F800FFFF800001F001FFFF800000E003FFFF000000C007FFFF000000000FFFFE000000001FFFFE000000003FFFFC000000007FFFF800000000FFFFF000000001FFFFE000000003FFFFC000000001FFFF00000000007FFC000000000007C000000000000000000000000000000000000^FS\n";         
+        zpl += "^FO60,70^A0N,18,18^FDSOMIC^FS\n";
+        zpl += "^FO230,45^A0N,28,28^FDPT. SOMIC INDONESIA^FS\n";
+        zpl += "^FO600,20^A0N,22,22^FD" + model + "^FS\n";
+        zpl += "^FO590,60^A0N,20,20^FDDATE PACKING^FS\n";
+        zpl += "^FO610,80^A0N,19,19^FD" + packDate + "^FS\n";
+
+        zpl += "^FO50,110^A0N,22,22^FDPart Name^FS\n";
+        zpl += "^FO330,110^A0N,22,22^FDPart No.^FS\n";
+        zpl += "^FO570,110^A0N,22,22^FDQTY:^FS\n";
+
+        zpl += "^FO25,160^A0N,25,25^FD" + partName1 + "^FS\n";
+        zpl += "^FO60,190^A0N,25,25^FD" + partName2 + "^FS\n";
+        zpl += "^FO250,170^A0N,35,35^FD" + partNo + "^FS\n";
+        zpl += "^FO610,170^A0N,25,25^FD" + qty + "^FS\n";
+
+        zpl += "^FO45,240^A0N,22,22^FDJudgement^FS\n";
+        zpl += "^FO330,240^A0N,22,22^FDCustomer^FS\n";
+        zpl += "^FO610,240^A0N,22,22^FDChecked^FS\n";
+
+        zpl += "^FO75,300^A0N,40,40^FDOK^FS\n";
+        zpl += "^FO270,290^A0N,25,25^FD" + customer1 + "^FS\n";
+        zpl += "^FO285,325^A0N,25,25^FD" + customer2 + "^FS\n";
+        zpl += "^FO615,300^A0N,35,35^FD" + operator + "^FS\n";
+
+    } else if (modelType === "Template 3") {
+        var partName1 = "SOCKET BALL";
+        var partName2 = "JOINT";
+        var partNo1   = "45253-77510";
+        var partNo2   = "(A-261-206-Z)";
+        var backNo    = "B014";
+        var qty       = "40 PCS";
+        var customer1 = "PT.NTC/";
+        var customer2 = "PT.MIYUKI";
+        var operator  = operatorName; 
+
+        zpl += "^FO10,10^GB770,380,2^FS\n";      
+        zpl += "^FO10,90^GB770,0,2^FS\n";       
+        zpl += "^FO10,130^GB770,0,2^FS\n";      
+        zpl += "^FO10,240^GB770,0,2^FS\n";      
+        zpl += "^FO10,280^GB570,0,2^FS\n";      
+        zpl += "^FO160,10^GB0,80,2^FS\n";       
+        zpl += "^FO250,90^GB0,290,2^FS\n";      
+        zpl += "^FO580,10^GB0,370,2^FS\n";      
+        zpl += "^FO60,15^GFA,350,350,7,00000000000000000000000000000000000000070000000000000F8000000000001F8000000000003F8000000000007F000000000000FE000000000003FC000000000003F800000000000FF000000000000FE0000000FF803FC000000FFFE07F0000001FFFF8FF0000007FFFF8FE000000FFFFF078000001FFFFE030000003FFFFC000000007FFFF8000000007FFFF000000000FFFFE003000000FFFFC007000001FFFF800F800001FFFF001F800001FFFE003F800003FFFC007F800003FFF800FF800003FFF001FFC00003FFE003FFC00003FF8007FF800003FF001FFF800003FF001FFF800001FC007FFF800001F800FFFF800001F001FFFF800000E003FFFF000000C007FFFF000000000FFFFE000000001FFFFE000000003FFFFC000000007FFFF800000000FFFFF000000001FFFFE000000003FFFFC000000001FFFF00000000007FFC000000000007C000000000000000000000000000000000000^FS\n";         
+        zpl += "^FO60,70^A0N,18,18^FDSOMIC^FS\n";
+        zpl += "^FO230,40^A0N,30,30^FDPT. SOMIC INDONESIA^FS\n";
+        zpl += "^FO590,20^A0N,18,18^FDBack No.^FS\n";
+        zpl += "^FO620,40^A0N,40,40^FD" + backNo + "^FS\n";
+        zpl += "^FO80,100^A0N,22,22^FDPart Name^FS\n";
+        zpl += "^FO370,100^A0N,22,22^FDPart NO.^FS\n";
+        zpl += "^FO590,105^A0N,20,20^FDQTY:^FS\n";
+        zpl += "^FO640,100^A0N,28,28^FD" + qty + "^FS\n"; 
+        zpl += "^FO40,160^A0N,25,25^FD" + partName1 + "^FS\n";
+        zpl += "^FO80,195^A0N,25,25^FD" + partName2 + "^FS\n";
+        zpl += "^FO320,150^A0N,30,30^FD" + partNo1 + "^FS\n";
+        zpl += "^FO310,195^A0N,28,28^FD" + partNo2 + "^FS\n";
+        zpl += "^FO590,160^A0N,20,20^FDDATE :^FS\n";
+        zpl += "^FO600,190^A0N,22,22^FD" + packDate + "^FS\n"; 
+        zpl += "^FO60,250^A0N,22,22^FDJudgement^FS\n";
+        zpl += "^FO370,250^A0N,22,22^FDCustomer^FS\n";
+        zpl += "^FO590,250^A0N,20,20^FDChecked^FS\n";
+        zpl += "^FO105,310^A0N,40,40^FDOK^FS\n";
+        zpl += "^FO360,300^A0N,25,25^FD" + customer1 + "^FS\n";
+        zpl += "^FO345,335^A0N,25,25^FD" + customer2 + "^FS\n";
+        zpl += "^FO630,300^A0N,40,40^FD" + operator + "^FS\n";
+    } else if (modelType === "Template 4") {
+        var partName1 = "SOCKET BALL";
+        var partName2 = "JOINT";
+        var partNo    = "A-261-158-Z";
+        var backNo    = "B009";
+        var qty       = "45 PCS";
+        var customer  = "PT. BELLSONICA";
+        var operator  = operatorName; 
+
+        zpl += "^FO10,10^GB770,380,2^FS\n";      
+        zpl += "^FO160,10^GB0,80,2^FS\n";      
+        zpl += "^FO250,90^GB0,290,2^FS\n";     
+        zpl += "^FO580,10^GB0,370,2^FS\n";     
+        zpl += "^FO580,70^GB200,0,2^FS\n";      
+        zpl += "^FO10,90^GB570,0,2^FS\n";       
+        zpl += "^FO10,130^GB770,0,2^FS\n";      
+        zpl += "^FO10,240^GB770,0,2^FS\n";      
+        zpl += "^FO10,280^GB570,0,2^FS\n";      
+        zpl += "^FO60,15^GFA,350,350,7,00000000000000000000000000000000000000070000000000000F8000000000001F8000000000003F8000000000007F000000000000FE000000000003FC000000000003F800000000000FF000000000000FE0000000FF803FC000000FFFE07F0000001FFFF8FF0000007FFFF8FE000000FFFFF078000001FFFFE030000003FFFFC000000007FFFF8000000007FFFF000000000FFFFE003000000FFFFC007000001FFFF800F800001FFFF001F800001FFFE003F800003FFFC007F800003FFF800FF800003FFF001FFC00003FFE003FFC00003FF8007FF800003FF001FFF800003FF001FFF800001FC007FFF800001F800FFFF800001F001FFFF800000E003FFFF000000C007FFFF000000000FFFFE000000001FFFFE000000003FFFFC000000007FFFF800000000FFFFF000000001FFFFE000000003FFFFC000000001FFFF00000000007FFC000000000007C000000000000000000000000000000000000^FS\n";         
+        zpl += "^FO60,70^A0N,18,18^FDSOMIC^FS\n";
+        zpl += "^FO230,45^A0N,28,28^FDPT. SOMIC INDONESIA^FS\n";
+        zpl += "^FO590,15^A0N,16,16^FDBack No.^FS\n";
+        zpl += "^FO650,20^A0N,40,40^FD" + backNo + "^FS\n";
+        zpl += "^FO590,80^A0N,16,16^FDDATE PACKING^FS\n";
+        zpl += "^FO600,100^A0N,22,22^FD" + packDate + "^FS\n";
+        zpl += "^FO80,100^A0N,22,22^FDPart Name^FS\n";
+        zpl += "^FO380,100^A0N,22,22^FDPart NO.^FS\n"; 
+        zpl += "^FO40,160^A0N,25,25^FD" + partName1 + "^FS\n";
+        zpl += "^FO80,195^A0N,25,25^FD" + partName2 + "^FS\n";
+        zpl += "^FO310,170^A0N,35,35^FD" + partNo + "^FS\n";
+        zpl += "^FO595,175^A0N,26,26^FDQTY: " + qty + "^FS\n"; 
+        zpl += "^FO60,250^A0N,22,22^FDJudgement^FS\n";
+        zpl += "^FO370,250^A0N,22,22^FDCustomer^FS\n";
+        zpl += "^FO590,250^A0N,20,20^FDChecked^FS\n";
+        zpl += "^FO105,310^A0N,40,40^FDOK^FS\n";
+        zpl += "^FO330,315^A0N,28,28^FD" + customer + "^FS\n";
+        zpl += "^FO630,310^A0N,40,40^FD" + operator + "^FS\n";
+    }
+
+
+    zpl += "^XZ";
+
+    fetch('https://api.labelary.com/v1/printers/8dpmm/labels/4x2/0/', {
+        method: 'POST',
+        headers: {
+            'Accept': 'image/png',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: zpl
+    })
+    .then(function(response) {
+        if (!response.ok) throw new Error("Gagal merender gambar label");
+        return response.blob();
+    })
+    .then(function(blob) {
+        var imageUrl = URL.createObjectURL(blob);
+        document.getElementById('labelImage').src = imageUrl;
+        previewModal.show();
+        submitBtn.innerHTML = "Generate Label";
+        submitBtn.disabled = false;
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat memproses label.');
+        submitBtn.innerHTML = "Generate Label";
+        submitBtn.disabled = false;
+    });
+});
+// Fungsi untuk memunculkan/menyembunyikan form sesuai template
+document.getElementById('model_type').addEventListener('change', function() {
+    var kolomKhusus = document.getElementById('kolom_khusus');
+    
+    if (this.value === 'Template 1') {
+        kolomKhusus.style.display = 'block'; 
+    } else {
+        kolomKhusus.style.display = 'none';  
+    }
+});
+
+document.getElementById('btnCetakFisik').addEventListener('click', function() {
+    var imgSrc = document.getElementById('labelImage').src;
+    var printCopies = parseInt(document.getElementById('print_copies').value) || 1;
+    
+    if(!imgSrc || imgSrc === "") {
+        alert("Generate labelnya dulu ya Bang!");
+        return;
+    }
+
+    var printWindow = window.open('', '_blank');
+    
+    var htmlContent = '<!DOCTYPE html><html><head><title>Print Label A4</title>';
+    htmlContent += '<style>';
+    htmlContent += '*, *::before, *::after { box-sizing: border-box; } ';
+    htmlContent += '@page { size: A4 portrait; margin: 5mm; } ';
+    htmlContent += 'body { margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; align-content: start; } ';
+    htmlContent += '.label-box { width: 9.5cm; height: 4.8cm; border: 1px dashed #999; page-break-inside: avoid; break-inside: avoid; display: flex; justify-content: center; align-items: center; } ';
+    htmlContent += '.label-box img { max-width: 100%; max-height: 100%; object-fit: contain; } ';
+    htmlContent += '<' + '/style><' + '/head><body>';
+    
+    for (var i = 0; i < printCopies; i++) {
+        htmlContent += '<div class="label-box"><img src="' + imgSrc + '"><' + '/div>';
+    }
+    
+    htmlContent += '<' + '/body><' + '/html>';
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    setTimeout(function() {
+        printWindow.print();
+        printWindow.close();
+    }, 1000); 
+});
+
+</script>
+
+<footer class="text-center" style="padding: 3rem 1.5rem; font-size: 0.875rem; color: #64748b;">
+    <div class="mx-auto" style="max-width: 1024px; border-top: 1px solid #1e293b; padding-top: 2rem;">
+        <p class="mb-4 fw-semibold" style="color: #010f23;">
+            &copy; <span id="tahun-sekarang"></span> PPIC SOMIC. All Rights Reserved.
+        </p>
+    </div>
+</footer>
+</body>
+</html>
